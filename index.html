@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Punti Ping Pong</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#e8eff6; --side-a:#f6f9fc; --side-b:#dbe6f1; --ink:#0e2a47; --muted:#4c6683;
+  --line:#0e2a47; --ball:#e8700a; --ok:#1b7f4b; --warn:#b3261e; --btn:#0e2a47; --btn-ink:#f6f9fc;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#071a2e; --side-a:#0f3558; --side-b:#0b2845; --ink:#f2f6fa; --muted:#9db3c9;
+    --line:#f2f6fa; --ball:#ff9a2e; --ok:#5fd397; --warn:#ff8a80; --btn:#f2f6fa; --btn-ink:#071a2e;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#071a2e; --side-a:#0f3558; --side-b:#0b2845; --ink:#f2f6fa; --muted:#9db3c9;
+  --line:#f2f6fa; --ball:#ff9a2e; --ok:#5fd397; --warn:#ff8a80; --btn:#f2f6fa; --btn-ink:#071a2e;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font-family:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;font-size:1.15rem;font-weight:700}
+.status{display:flex;align-items:center;gap:8px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--muted);flex:none}
+.status[data-s="on"] .dot{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 30%,transparent)}
+.status[data-s="restart"] .dot{background:var(--ball)}
+.status[data-s="denied"] .dot{background:var(--warn);border-radius:3px}
+.heard{color:var(--muted);font-weight:500;font-size:1rem;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}
+
+.board{flex:1;display:grid;grid-template-columns:1fr 1fr;position:relative;min-height:0}
+.side{border:0;margin:0;padding:0;font:inherit;color:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;position:relative}
+.side.a{background:var(--side-a)} .side.b{background:var(--side-b)}
+.side:focus-visible{outline:4px solid var(--ball);outline-offset:-4px}
+.board::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:4px;margin-left:-2px;background:var(--line);opacity:.85;pointer-events:none}
+.name{font-size:clamp(2.8rem,10vw,4.4rem);font-weight:700;color:var(--muted)}
+.score{font-size:clamp(7rem,38vw,22rem);font-weight:800;line-height:.85;font-variant-numeric:tabular-nums}
+.serve{height:60px;display:flex;align-items:center;gap:14px;font-size:2.4rem;font-weight:700;color:var(--ball);visibility:hidden}
+.serve i{width:44px;height:44px;border-radius:50%;background:var(--ball);display:block}
+.side.serving .serve{visibility:visible}
+.side.flash .score{animation:pop .35s ease-out}
+@keyframes pop{0%{transform:scale(1.14)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.side.flash .score{animation:none}}
+
+.banner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;background:var(--ball);color:#111;
+  padding:14px 28px;border-radius:14px;font-size:clamp(1.8rem,7vw,3rem);font-weight:800;text-align:center;display:none;pointer-events:none}
+.banner.show{display:block}
+
+.bar{display:flex;gap:8px;padding:10px 12px;justify-content:center;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;font-size:1.25rem;padding:12px 18px;border-radius:10px;border:2px solid var(--btn);background:transparent;color:var(--ink);cursor:pointer;min-height:48px}
+.btn.primary{background:var(--btn);color:var(--btn-ink)}
+.btn[aria-pressed="false"]{opacity:.65;text-decoration:line-through}
+.btn:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
+
+.intro{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;
+  padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.intro[hidden]{display:none}
+.card{max-width:460px;width:100%;display:flex;flex-direction:column;gap:14px}
+.card h1{margin:0;font-size:3rem;line-height:1;font-weight:800}
+.card p{margin:0;font-family:system-ui,sans-serif;font-size:1rem;line-height:1.45;color:var(--muted)}
+.card strong{color:var(--ink)}
+.row{display:flex;gap:8px;align-items:center;font-size:1.2rem;font-weight:700}
+.msg{color:var(--muted);font-family:system-ui,sans-serif;font-size:.95rem}
+:root{--p1:#0b86d1;--p2:#e5484d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--p1:#4fc3f7;--p2:#ff7a7a}}
+:root[data-theme="dark"]{--p1:#4fc3f7;--p2:#ff7a7a}
+.side.a .name,.side.a .score{color:var(--p1)}
+.side.b .name,.side.b .score{color:var(--p2)}
+.btn.big{font-size:2rem;padding:20px}
+.btn.p1b{border-color:var(--p1);color:var(--p1)}
+.btn.p2b{border-color:var(--p2);color:var(--p2)}
+</style>
+</head>
+<body>
+
+<div class="intro" id="intro">
+  <div class="card">
+    <h1>Punti Ping Pong</h1>
+    <p>Di’ <strong>“punto uno”</strong> o <strong>“punto due”</strong> a ogni punto, <strong>“annulla”</strong> per correggere, <strong>“nuova partita”</strong> per ricominciare e <strong>“serve uno”</strong> o <strong>“serve due”</strong> per scegliere chi batte. Puoi sempre toccare la metà dello schermo del giocatore. Il primo avvio scarica il modello vocale (circa 50 MB): meglio col Wi-Fi. Tieni lo schermo acceso.</p>
+    <div class="row" role="group" aria-label="Chi serve per primo">
+      <span>Serve per primo:</span>
+      <button class="btn primary" id="f1" aria-pressed="true">Uno</button>
+      <button class="btn" id="f2" aria-pressed="false">Due</button>
+    </div>
+    <button class="btn primary" id="go">Inizia partita</button>
+    <div class="msg" id="introMsg" role="status"></div>
+  </div>
+</div>
+
+<div class="intro" id="pick" hidden>
+  <div class="card">
+    <h1>Chi batte per primo?</h1>
+    <p>Tocca un pulsante oppure di’ <strong>“serve uno”</strong> o <strong>“serve due”</strong>.</p>
+    <button class="btn big p1b" id="pk1">Serve Uno</button>
+    <button class="btn big p2b" id="pk2">Serve Due</button>
+    <button class="btn" id="pkx">Annulla e continua la partita</button>
+  </div>
+</div>
+
+<div class="top">
+  <div class="status" id="status" data-s="off" role="status" aria-live="polite"><span class="dot"></span><span id="statusTxt">Ascolto spento</span></div>
+  <div class="heard" id="heard" aria-hidden="true"></div>
+</div>
+
+<div class="board" id="board">
+  <button class="side a" id="sa" aria-label="Aggiungi punto a giocatore uno">
+    <span class="name">Uno</span><span class="score" id="na">0</span>
+    <span class="serve"><i></i>serve</span>
+  </button>
+  <button class="side b" id="sb" aria-label="Aggiungi punto a giocatore due">
+    <span class="name">Due</span><span class="score" id="nb">0</span>
+    <span class="serve"><i></i>serve</span>
+  </button>
+  <div class="banner" id="banner" role="status" aria-live="polite"></div>
+</div>
+
+<div class="bar">
+  <button class="btn primary" id="undo">Annulla</button>
+  <button class="btn" id="mic" aria-pressed="true">Ascolto</button>
+  <button class="btn" id="voice" aria-pressed="true">Voce</button>
+  <button class="btn" id="reset">Nuova partita</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js"></script>
+<script>
+(function(){
+  var s=[0,0], hist=[], first=0, over=false, picking=false, busyUntil=0;
+  var voiceOn=true, listening=false, rec=null, restartT=null, fails=0, startedAt=0, lastCmd={c:'',t:0}, wake=null;
+  var $=function(id){return document.getElementById(id)};
+
+  function server(){
+    var t=s[0]+s[1];
+    var idx=t<20?Math.floor(t/2):10+(t-20);
+    return (first+idx)%2;
+  }
+  function winner(){
+    if((s[0]>=11||s[1]>=11)&&Math.abs(s[0]-s[1])>=2) return s[0]>s[1]?0:1;
+    return -1;
+  }
+  function speak(txt){
+    try{
+      if(!voiceOn||!window.speechSynthesis) return;
+      speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(txt); u.lang='it-IT'; u.rate=1.05;
+      busyUntil=Date.now()+4000;
+      u.onend=function(){ busyUntil=Date.now()+700; };
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  var W=['uno','due'];
+  function announce(){
+    var w=winner();
+    if(w>=0){ speak('Vince giocatore '+W[w]+', '+Math.max(s[0],s[1])+' a '+Math.min(s[0],s[1])); return; }
+    var sc=s[0]===s[1]? s[0]+' pari' : s[0]+' a '+s[1];
+    speak(sc+', serve '+W[server()]);
+  }
+  function render(flashIdx){
+    $('na').textContent=s[0]; $('nb').textContent=s[1];
+    var w=winner(); over=w>=0;
+    var sv=server();
+    $('sa').classList.toggle('serving',!over&&sv===0);
+    $('sb').classList.toggle('serving',!over&&sv===1);
+    var b=$('banner');
+    if(over){ b.textContent='Vince '+['Uno','Due'][w]+' · '+s[w]+'–'+s[1-w]; b.classList.add('show'); }
+    else b.classList.remove('show');
+    if(flashIdx===0||flashIdx===1){
+      var el=$(flashIdx?'sb':'sa'); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    }
+  }
+  function point(i){
+    if(over) return;
+    hist.push([s[0],s[1]]); s[i]++;
+    render(i); announce();
+    if(navigator.vibrate) try{navigator.vibrate(40)}catch(e){}
+  }
+  function undo(){
+    if(!hist.length){ speak('Nessun punto da togliere'); return; }
+    s=hist.pop(); render(); announce();
+  }
+  function openPick(){ if(picking) return; picking=true; $('pick').hidden=false; speak('Nuova partita. Chi batte per primo?'); }
+  function closePick(){ picking=false; $('pick').hidden=true; }
+  function startNew(i){ first=i; s=[0,0]; hist=[]; closePick(); render(); speak('Serve '+W[first]); }
+  function setFirst(i){ first=i; render(); announce(); }
+
+  /* ---- Riconoscimento vocale (Vosk, offline nel browser) ---- */
+var MODEL_URL='model.tar.gz', USE_GRAMMAR=true;
+var model=null, modelP=null, ctx=null, stream=null, proc=null, src=null, recog=null, starting=false;
+function setStatus(k){
+  var t={on:'Ascolto attivo',loading:'Carico il modello vocale…',off:'Ascolto spento',denied:'Microfono bloccato',error:'Modello non caricato: usa il tocco'};
+  $('status').setAttribute('data-s',k==='loading'?'restart':(k==='error'?'denied':k));
+  $('statusTxt').textContent=t[k];
+}
+function parse(txt){
+  var re=/(annull\w*|indietro)|(nuova\s+partita|ricomincia)|(?:serve|batte|servizio|inizia)\s*(uno|un|1|due|2)\b|punt[oi]\s*(uno|un|1|due|2)\b/g, m, out=[];
+  var isOne=function(x){return /^(uno|un|1)$/.test(x)};
+  txt=txt.toLowerCase();
+  while((m=re.exec(txt))){
+    if(m[1]) out.push('u');
+    else if(m[2]) out.push('n');
+    else if(m[3]) out.push(isOne(m[3])?'s0':'s1');
+    else out.push(isOne(m[4])?'p0':'p1');
+  }
+  return out;
+}
+function run(c){
+  var now=Date.now();
+  if(lastCmd.c===c&&now-lastCmd.t<1200) return;
+  if(c==='u'){ lastCmd={c:c,t:now}; if(picking) closePick(); else undo(); return; }
+  if(c==='n'||c==='s0'||c==='s1'){
+    if(now<busyUntil) return;
+    lastCmd={c:c,t:now};
+    if(c==='n'){ openPick(); return; }
+    var i=c==='s0'?0:1;
+    if(picking) startNew(i);
+    else if(!hist.length&&s[0]===0&&s[1]===0) setFirst(i);
+    return;
+  }
+  lastCmd={c:c,t:now};
+  if(picking) return;
+  point(c==='p0'?0:1);
+}
+async function getModelUrl(){
+  /* Il modello e' diviso in parti da meno di 25 MB (limite di upload di GitHub): le scarico e le riunisco. */
+  var parts=[], i=1;
+  while(i<=20){
+    var r;
+    try{ r=await fetch('model.part'+i); }catch(e){ break; }
+    if(!r.ok) break;
+    parts.push(await r.blob());
+    $('introMsg').textContent='Scarico il modello vocale… parte '+i;
+    i++;
+  }
+  if(!parts.length) return MODEL_URL;
+  return URL.createObjectURL(new Blob(parts,{type:'application/gzip'}));
+}
+function loadModel(){
+  if(modelP) return modelP;
+  $('introMsg').textContent='Carico il modello vocale…';
+  modelP=getModelUrl().then(function(u){ return Vosk.createModel(u); }).then(function(m){
+    model=m; $('introMsg').textContent='Modello vocale pronto.'; return m;
+  });
+  modelP=modelP.catch(function(e){
+    modelP=null;
+    $('introMsg').textContent='Modello non caricato: controlla che i file model.part1, model.part2, … siano nella stessa cartella di index.html.';
+    throw e;
+  });
+  modelP.catch(function(){});
+  return modelP;
+}
+async function startRec(){
+  if(!listening||!model||!ctx) return;
+  if(recog){ try{ctx.resume()}catch(e){} return; }
+  if(starting) return;
+  starting=true;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+  }catch(e){
+    starting=false; stopRec(); setStatus('denied'); $('mic').setAttribute('aria-pressed','false'); return;
+  }
+  starting=false;
+  if(!listening||!ctx){ try{stream.getTracks().forEach(function(t){t.stop()})}catch(e){} stream=null; return; }
+  try{ ctx.resume(); }catch(e){}
+  var sr=ctx.sampleRate;
+  var phrases=['punto uno','punto due','annulla','indietro','nuova partita','ricomincia','serve uno','serve due','batte uno','batte due','[unk]'];
+  try{ recog=USE_GRAMMAR?new model.KaldiRecognizer(sr,JSON.stringify(phrases)):new model.KaldiRecognizer(sr); }
+  catch(e){ recog=new model.KaldiRecognizer(sr); }
+  recog.on('result',function(m){
+    var t=(m.result&&m.result.text)||'';
+    if(!t) return;
+    $('heard').textContent='“'+t+'”';
+    parse(t).forEach(run);
+  });
+  recog.on('partialresult',function(m){
+    var t=m.result&&m.result.partial;
+    if(t) $('heard').textContent='… '+t;
+  });
+  src=ctx.createMediaStreamSource(stream);
+  proc=ctx.createScriptProcessor(4096,1,1);
+  proc.onaudioprocess=function(e){ try{recog.acceptWaveform(e.inputBuffer)}catch(err){} };
+  src.connect(proc); proc.connect(ctx.destination);
+  setStatus('on');
+}
+function stopRec(){
+  listening=false; starting=false;
+  try{ proc&&proc.disconnect(); src&&src.disconnect(); }catch(e){}
+  try{ stream&&stream.getTracks().forEach(function(t){t.stop()}); }catch(e){}
+  try{ recog&&recog.remove(); }catch(e){}
+  try{ ctx&&ctx.close(); }catch(e){}
+  proc=null; src=null; stream=null; recog=null; ctx=null;
+  setStatus('off');
+}
+function beginListening(){
+  if(listening) return;
+  listening=true; setStatus('loading');
+  try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); ctx.resume(); }catch(e){}
+  loadModel().then(startRec).catch(function(){ stopRec(); setStatus('error'); });
+}
+
+  /* ---- Wake Lock ---- */
+  async function lockScreen(){
+    try{
+      if('wakeLock' in navigator && !document.hidden) wake=await navigator.wakeLock.request('screen');
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden){
+      lockScreen();
+      if(listening){ try{rec&&rec.abort()}catch(e){} clearTimeout(restartT); restartT=setTimeout(startRec,200); }
+    }
+  });
+
+  /* ---- UI ---- */
+  $('sa').onclick=function(){point(0)};
+  $('sb').onclick=function(){point(1)};
+  $('undo').onclick=undo;
+  $('voice').onclick=function(){
+    voiceOn=!voiceOn; this.setAttribute('aria-pressed',voiceOn);
+    if(!voiceOn&&window.speechSynthesis) speechSynthesis.cancel();
+  };
+  $('mic').onclick=function(){
+    if(listening){ stopRec(); this.setAttribute('aria-pressed','false'); }
+    else{ this.setAttribute('aria-pressed','true'); beginListening(); }
+  };
+  $('reset').onclick=openPick;
+  $('pk1').onclick=function(){startNew(0)};
+  $('pk2').onclick=function(){startNew(1)};
+  $('pkx').onclick=closePick;
+  function pickFirst(i){
+    first=i;
+    $('f1').setAttribute('aria-pressed',i===0); $('f2').setAttribute('aria-pressed',i===1);
+    $('f1').classList.toggle('primary',i===0); $('f2').classList.toggle('primary',i===1);
+  }
+  $('f1').onclick=function(){pickFirst(0)};
+  $('f2').onclick=function(){pickFirst(1)};
+  loadModel();
+  $('go').onclick=function(){
+    $('intro').hidden=true;
+    lockScreen(); render();
+    speak('Pronti. Serve '+W[first]);
+    beginListening();
+  };
+  render();
+})();
+</script>
+</body>
+</html>
