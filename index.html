@@ -106,7 +106,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     <p>Tocca un pulsante oppure di’ <strong>“serve uno”</strong> o <strong>“serve due”</strong>.</p>
     <button class="btn big p1b" id="pk1">Serve Uno</button>
     <button class="btn big p2b" id="pk2">Serve Due</button>
-    <button class="btn" id="pkx">Annulla e continua la partita</button>
+    <button class="btn" id="pkx">Annulla</button>
   </div>
 </div>
 
@@ -196,7 +196,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   function setFirst(i){ first=i; render(); announce(); }
 
   /* ---- Riconoscimento vocale (Vosk, offline nel browser) ---- */
-var MODEL_URL='model.tar.gz', USE_GRAMMAR=true;
+var MODEL_URL='model.tar.gz', USE_GRAMMAR=false;
 var model=null, modelP=null, ctx=null, stream=null, proc=null, src=null, recog=null, starting=false;
 function setStatus(k){
   var t={on:'Ascolto attivo',loading:'Carico il modello vocale…',off:'Ascolto spento',denied:'Microfono bloccato',error:'Modello non caricato: usa il tocco'};
